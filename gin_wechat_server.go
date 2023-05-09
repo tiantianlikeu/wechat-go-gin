@@ -21,20 +21,20 @@ import (
 
 // gin 微信消息
 type GinWxMsg struct {
-	gin           *gin.Context
-	wxCtx         *context.Context
-	mixMessage    *message.MixMessage
-	isSafeMode    bool
-	isJSONContent bool
-	random        []byte
-	nonce         string
-	timestamp     int64
+	Gin           *gin.Context
+	WxCtx         *context.Context
+	MixMessage    *message.MixMessage
+	IsSafeMode    bool
+	IsJSONContent bool
+	Random        []byte
+	Nonce         string
+	Timestamp     int64
 
-	skipValidate bool
+	SkipValidate bool
 
-	openID string
+	OpenID string
 
-	messageReply *message.Reply
+	MessageReply *message.Reply
 
 	RequestRawXMLMsg  []byte
 	RequestMsg        *message.MixMessage
@@ -46,9 +46,9 @@ type GinWxMsg struct {
 func GetWxMsg(c *gin.Context, wxCtx *context.Context, skip bool) (ginWxMsg *GinWxMsg, err error) {
 	var msg interface{}
 	ginWxMsg = new(GinWxMsg)
-	ginWxMsg.wxCtx = wxCtx
-	ginWxMsg.gin = c
-	ginWxMsg.skipValidate = skip
+	ginWxMsg.WxCtx = wxCtx
+	ginWxMsg.Gin = c
+	ginWxMsg.SkipValidate = skip
 
 	// 验证签名
 	if !Validate(ginWxMsg) {
@@ -67,7 +67,7 @@ func GetWxMsg(c *gin.Context, wxCtx *context.Context, skip bool) (ginWxMsg *GinW
 		return
 	}
 	mixMessage, success := msg.(*message.MixMessage)
-	ginWxMsg.mixMessage = mixMessage
+	ginWxMsg.MixMessage = mixMessage
 	if !success {
 		err = errors.New("消息类型转换失败")
 		return nil, err
@@ -79,20 +79,20 @@ func GetWxMsg(c *gin.Context, wxCtx *context.Context, skip bool) (ginWxMsg *GinW
 
 // getMessage 解析微信返回的消息
 func getMessage(ginWxMsg *GinWxMsg) (interface{}, error) {
-	c := ginWxMsg.gin
+	c := ginWxMsg.Gin
 	// set isSafeMode
-	ginWxMsg.isSafeMode = false
+	ginWxMsg.IsSafeMode = false
 	encryptType := c.Query("encrypt_type")
 	if encryptType == "aes" {
-		ginWxMsg.isSafeMode = true
+		ginWxMsg.IsSafeMode = true
 	}
 
 	// set openID
-	ginWxMsg.openID = c.Query("openid")
+	ginWxMsg.OpenID = c.Query("openid")
 
 	var rawXMLMsgBytes []byte
 	var err error
-	if ginWxMsg.isSafeMode {
+	if ginWxMsg.IsSafeMode {
 		encryptedXMLMsg, dataErr := getEncryptBody(ginWxMsg)
 		if dataErr != nil {
 			return nil, dataErr
@@ -100,20 +100,20 @@ func getMessage(ginWxMsg *GinWxMsg) (interface{}, error) {
 
 		// 验证消息签名
 		timestamp := c.Query("timestamp")
-		ginWxMsg.timestamp, err = strconv.ParseInt(timestamp, 10, 32)
+		ginWxMsg.Timestamp, err = strconv.ParseInt(timestamp, 10, 32)
 		if err != nil {
 			return nil, err
 		}
 		nonce := c.Query("nonce")
-		ginWxMsg.nonce = nonce
+		ginWxMsg.Nonce = nonce
 		msgSignature := c.Query("msg_signature")
-		msgSignatureGen := util.Signature(ginWxMsg.wxCtx.Token, timestamp, nonce, encryptedXMLMsg.EncryptedMsg)
+		msgSignatureGen := util.Signature(ginWxMsg.WxCtx.Token, timestamp, nonce, encryptedXMLMsg.EncryptedMsg)
 		if msgSignature != msgSignatureGen {
 			return nil, fmt.Errorf("消息不合法，验证签名失败")
 		}
 
 		// 解密
-		ginWxMsg.random, rawXMLMsgBytes, err = util.DecryptMsg(ginWxMsg.wxCtx.AppID, encryptedXMLMsg.EncryptedMsg, ginWxMsg.wxCtx.EncodingAESKey)
+		ginWxMsg.Random, rawXMLMsgBytes, err = util.DecryptMsg(ginWxMsg.WxCtx.AppID, encryptedXMLMsg.EncryptedMsg, ginWxMsg.WxCtx.EncodingAESKey)
 		if err != nil {
 			return nil, fmt.Errorf("消息解密失败, err=%v", err)
 		}
@@ -129,11 +129,11 @@ func getMessage(ginWxMsg *GinWxMsg) (interface{}, error) {
 
 // 获取加密消息体
 func getEncryptBody(ginWxMsg *GinWxMsg) (*message.EncryptedXMLMsg, error) {
-	c := ginWxMsg.gin
+	c := ginWxMsg.Gin
 	var encryptedXMLMsg = &message.EncryptedXMLMsg{}
 	contentType := c.Request.Header.Get("Content-Type")
-	ginWxMsg.isJSONContent = strings.Contains(contentType, "application/json")
-	if ginWxMsg.isJSONContent {
+	ginWxMsg.IsJSONContent = strings.Contains(contentType, "application/json")
+	if ginWxMsg.IsJSONContent {
 		body, _ := io.ReadAll(c.Request.Body)
 		if err := json.Unmarshal(body, encryptedXMLMsg); err != nil {
 			return nil, fmt.Errorf("从body中解析json失败,err=%v", err)
@@ -155,21 +155,21 @@ func isJSONContent(c *gin.Context) bool {
 
 // Validate 校验请求是否合法
 func Validate(ginWxMsg *GinWxMsg) bool {
-	if ginWxMsg.skipValidate {
+	if ginWxMsg.SkipValidate {
 		return true
 	}
 
-	c := ginWxMsg.gin
+	c := ginWxMsg.Gin
 	timestamp := c.Query("timestamp")
 	nonce := c.Query("nonce")
 	signature := c.Query("signature")
 	fmt.Println("validate signature, timestamp= ", timestamp, " , nonce=", nonce)
-	return signature == util.Signature(ginWxMsg.wxCtx.Token, timestamp, nonce)
+	return signature == util.Signature(ginWxMsg.WxCtx.Token, timestamp, nonce)
 }
 
 // 编译响应参数
 func BuildResponse(ginWxMsg *GinWxMsg) (err error) {
-	reply := ginWxMsg.messageReply
+	reply := ginWxMsg.MessageReply
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("panic error: %v\n%s", e, debug.Stack())
@@ -285,24 +285,24 @@ func Render(c *gin.Context, bytes []byte) {
 
 func Result(ginWxMsg *GinWxMsg) (err error) {
 	replyMsg := ginWxMsg.ResponseMsg
-	c := ginWxMsg.gin
-	if ginWxMsg.isSafeMode {
+	c := ginWxMsg.Gin
+	if ginWxMsg.IsSafeMode {
 
 		// 安全模式下对消息进行加密
 		var encryptedMsg []byte
-		encryptedMsg, err = util.EncryptMsg(ginWxMsg.random, ginWxMsg.ResponseRawXMLMsg, ginWxMsg.wxCtx.AppID, ginWxMsg.wxCtx.EncodingAESKey)
+		encryptedMsg, err = util.EncryptMsg(ginWxMsg.Random, ginWxMsg.ResponseRawXMLMsg, ginWxMsg.WxCtx.AppID, ginWxMsg.WxCtx.EncodingAESKey)
 		if err != nil {
 			return
 		}
 		// TODO 如果获取不到timestamp nonce 则自己生成
-		timestamp := ginWxMsg.timestamp
+		timestamp := ginWxMsg.Timestamp
 		timestampStr := strconv.FormatInt(timestamp, 10)
-		msgSignature := util.Signature(ginWxMsg.wxCtx.Token, timestampStr, ginWxMsg.nonce, string(encryptedMsg))
+		msgSignature := util.Signature(ginWxMsg.WxCtx.Token, timestampStr, ginWxMsg.Nonce, string(encryptedMsg))
 		replyMsg = message.ResponseEncryptedXMLMsg{
 			EncryptedMsg: string(encryptedMsg),
 			MsgSignature: msgSignature,
 			Timestamp:    timestamp,
-			Nonce:        ginWxMsg.nonce,
+			Nonce:        ginWxMsg.Nonce,
 		}
 	}
 	if replyMsg != nil {
