@@ -1,7 +1,6 @@
 package wechatgogin
 
 import (
-	"crypto"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
