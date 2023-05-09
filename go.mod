@@ -1,4 +1,4 @@
-module wechat-go-gin
+module github.com/tiantianlikeu/wechat-go-gin
 
 go 1.20
 
