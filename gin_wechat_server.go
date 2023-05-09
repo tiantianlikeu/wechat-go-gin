@@ -220,7 +220,7 @@ func BuildResponse(ginWxMsg *GinWxMsg) (err error) {
 // 格式化请求消息
 func parseRequestMessage(c *gin.Context, rawXMLMsgBytes []byte) (msg *message.MixMessage, err error) {
 	msg = &message.MixMessage{}
-	if isJSONContent(c) {
+	if !isJSONContent(c) {
 		err = xml.Unmarshal(rawXMLMsgBytes, msg)
 		return
 	}
