@@ -1,6 +1,7 @@
 package wechatgogin
 
 import (
+	"crypto"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -134,13 +135,11 @@ func getEncryptBody(ginWxMsg *GinWxMsg) (*message.EncryptedXMLMsg, error) {
 	contentType := c.Request.Header.Get("Content-Type")
 	ginWxMsg.IsJSONContent = strings.Contains(contentType, "application/json")
 	if ginWxMsg.IsJSONContent {
-		body, _ := io.ReadAll(c.Request.Body)
-		if err := json.Unmarshal(body, encryptedXMLMsg); err != nil {
+		if err := json.NewDecoder(c.Request.Body).Decode(encryptedXMLMsg); err != nil {
 			return nil, fmt.Errorf("从body中解析json失败,err=%v", err)
 		}
 	} else {
-		body, _ := io.ReadAll(c.Request.Body)
-		if err := xml.Unmarshal(body, encryptedXMLMsg); err != nil {
+		if err := xml.NewDecoder(c.Request.Body).Decode(encryptedXMLMsg); err != nil {
 			return nil, fmt.Errorf("从body中解析xml失败,err=%v", err)
 		}
 	}
