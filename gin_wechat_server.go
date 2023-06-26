@@ -56,11 +56,12 @@ func GetWxMsg(c *gin.Context, wxCtx *context.Context, skip bool) (ginWxMsg *GinW
 		return nil, errors.New("签名校验失败")
 	}
 
-	// echostr, exists := c.GetQuery("echostr")
-	// if exists {
-	// 	ReulstString(c, echostr)
-	// 	return nil, nil
-	// }
+	// 如果是签名校验，则原样返回echostr
+	echostr, exists := c.GetQuery("echostr")
+	if exists {
+		ReulstString(c, echostr)
+		return nil, nil
+	}
 
 	msg, err = getMessage(ginWxMsg)
 	if err != nil {
